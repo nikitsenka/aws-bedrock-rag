@@ -17,4 +17,18 @@ aws bedrock list-foundation-models --region us-east-1 --by-provider amazon --que
 * access to Amazon Bedrock
 * access to Amazon OpenSearch Serverless
 
+# Usage
+
+## Download and Upload Sample Document to S3
+
+```bash
+curl -o 2022-Shareholder-Letter.pdf "https://s2.q4cdn.com/299287126/files/doc_financials/2023/ar/2022-Shareholder-Letter.pdf"
+aws s3 cp 2022-Shareholder-Letter.pdf s3://bedrock-kb-us-east-1-468470/2022-Shareholder-Letter.pdf
+```
+
+Verify the upload:
+```bash
+aws s3 ls s3://bedrock-kb-us-east-1-468470/
+```
+
 
