@@ -1,0 +1,5 @@
+.idea
+.claude
+.terraform
+.mcp.json
+.terraform.lock.hcl
