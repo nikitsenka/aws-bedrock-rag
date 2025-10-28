@@ -370,6 +370,66 @@ resource "aws_bedrockagent_data_source" "kb_data_source" {
   }
 }
 
+resource "null_resource" "start_ingestion_job" {
+  depends_on = [aws_bedrockagent_data_source.kb_data_source]
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      .venv/bin/python - <<'PYTHON'
+import boto3
+import time
+
+knowledge_base_id = "${aws_bedrockagent_knowledge_base.kb.id}"
+data_source_id = "${aws_bedrockagent_data_source.kb_data_source.data_source_id}"
+
+bedrock_agent_client = boto3.client('bedrock-agent', region_name='${local.aws_region}')
+
+print(f"Starting ingestion job for Knowledge Base: {knowledge_base_id}")
+print(f"Data Source: {data_source_id}")
+
+response = bedrock_agent_client.start_ingestion_job(
+    knowledgeBaseId=knowledge_base_id,
+    dataSourceId=data_source_id
+)
+
+ingestion_job_id = response['ingestionJob']['ingestionJobId']
+print(f"Ingestion job started with ID: {ingestion_job_id}")
+
+print("Waiting for ingestion job to complete: ", end='', flush=True)
+while True:
+    response = bedrock_agent_client.get_ingestion_job(
+        knowledgeBaseId=knowledge_base_id,
+        dataSourceId=data_source_id,
+        ingestionJobId=ingestion_job_id
+    )
+    status = response['ingestionJob']['status']
+
+    if status == 'COMPLETE':
+        print(" done.")
+        stats = response['ingestionJob']['statistics']
+        print(f"Ingestion completed successfully!")
+        print(f"  Documents scanned: {stats.get('numberOfDocumentsScanned', 0)}")
+        print(f"  Documents modified: {stats.get('numberOfModifiedDocumentsIndexed', 0)}")
+        print(f"  Documents deleted: {stats.get('numberOfDocumentsDeleted', 0)}")
+        print(f"  Documents failed: {stats.get('numberOfDocumentsFailed', 0)}")
+        break
+    elif status == 'FAILED':
+        print(" failed.")
+        print(f"Ingestion job failed: {response['ingestionJob'].get('failureReasons', [])}")
+        exit(1)
+    else:
+        print('█', end='', flush=True)
+        time.sleep(5)
+PYTHON
+    EOT
+  }
+
+  triggers = {
+    data_source_id = aws_bedrockagent_data_source.kb_data_source.data_source_id
+    kb_id          = aws_bedrockagent_knowledge_base.kb.id
+  }
+}
+
 output "knowledge_base_id" {
   value       = aws_bedrockagent_knowledge_base.kb.id
   description = "Bedrock Knowledge Base ID"
