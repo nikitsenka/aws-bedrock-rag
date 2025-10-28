@@ -347,9 +347,37 @@ resource "aws_bedrockagent_knowledge_base" "kb" {
   ]
 }
 
+resource "aws_bedrockagent_data_source" "kb_data_source" {
+  knowledge_base_id = aws_bedrockagent_knowledge_base.kb.id
+  name              = "s3-data-source-${local.resource_suffix}"
+  description       = "S3 data source for Bedrock Knowledge Base"
+
+  data_source_configuration {
+    type = "S3"
+    s3_configuration {
+      bucket_arn = aws_s3_bucket.bedrock_kb_bucket.arn
+    }
+  }
+
+  vector_ingestion_configuration {
+    chunking_configuration {
+      chunking_strategy = "FIXED_SIZE"
+      fixed_size_chunking_configuration {
+        max_tokens         = 512
+        overlap_percentage = 20
+      }
+    }
+  }
+}
+
 output "knowledge_base_id" {
   value       = aws_bedrockagent_knowledge_base.kb.id
   description = "Bedrock Knowledge Base ID"
+}
+
+output "data_source_id" {
+  value       = aws_bedrockagent_data_source.kb_data_source.data_source_id
+  description = "Bedrock Data Source ID"
 }
 
 output "s3_bucket_name" {
