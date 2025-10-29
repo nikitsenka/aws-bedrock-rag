@@ -104,7 +104,7 @@ resource "aws_bedrock_custom_model" "haiku_finetuned" {
   customization_type    = "FINE_TUNING"
 
   hyperparameters = {
-    epochCount                = "5"
+    epochCount                = "2"
     batchSize                 = "32"
     learningRateMultiplier    = "1"
     earlyStoppingThreshold    = "0.001"
