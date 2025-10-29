@@ -45,6 +45,11 @@ Verify the upload:
 aws s3 ls s3://bedrock-kb-us-east-1-468470/
 ```
 
+Delete the document
+```bash
+aws s3 rm s3://bedrock-kb-us-east-1-468470/2022-Shareholder-Letter.pdf
+```
+
 ## 3. Trigger manual ingestion (if needed)
 
 ```bash
