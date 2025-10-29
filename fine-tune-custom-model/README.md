@@ -7,6 +7,21 @@
 * create, update and delete Amazon S3 buckets (AmazonS3FullAccess policy)
 * access Amazon Bedrock (AmazonBedrockFullAccess policy)
 
+### 2. Verify Model Availability for Fine-Tuning
+
+**Important:** Claude 3 Haiku fine-tuning is only available in **us-west-2 (Oregon)** region as of 2025.
+
+Check available models for fine-tuning in your region:
+
+```bash
+aws bedrock list-foundation-models \
+    --region us-west-2 \
+    --by-customization-type FINE_TUNING \
+    --query 'modelSummaries[?contains(modelId, `haiku`)].{ModelId:modelId,ModelName:modelName,Provider:providerName}' \
+    --output table
+
+```
+
 ## Usage
 
 ### 1. Initialize and Deploy Infrastructure

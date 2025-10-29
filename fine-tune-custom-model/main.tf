@@ -10,7 +10,7 @@ terraform {
 }
 
 provider "aws" {
-  region = "us-east-1"
+  region = "us-west-2"
 }
 
 resource "random_integer" "suffix" {
@@ -23,9 +23,16 @@ data "aws_region" "current" {}
 data "aws_caller_identity" "current" {}
 
 locals {
-  aws_region      = data.aws_region.current.name
-  resource_suffix = random_integer.suffix.result
-  s3_bucket_name  = "bedrock-haiku-customization-${local.aws_region}-${local.resource_suffix}"
+  aws_region             = data.aws_region.current.name
+  resource_suffix        = random_integer.suffix.result
+  s3_bucket_name         = "bedrock-haiku-customization-${local.aws_region}-${local.resource_suffix}"
+  customization_job_name = "model-finetune-job-${local.resource_suffix}"
+  custom_model_name      = "finetuned-model-${local.resource_suffix}"
+  base_model_id          = "anthropic.claude-3-haiku-20240307-v1:0:200k"
+  base_model_arn         = "arn:aws:bedrock:${local.aws_region}::foundation-model/${local.base_model_id}"
+  s3_train_uri           = "s3://${local.s3_bucket_name}/train-samsum-1K.jsonl"
+  s3_validation_uri      = "s3://${local.s3_bucket_name}/validation-samsum-100.jsonl"
+  s3_output_uri          = "s3://${local.s3_bucket_name}/outputs/output-${local.custom_model_name}"
 }
 
 resource "aws_s3_bucket" "bedrock_haiku_bucket" {
@@ -89,6 +96,40 @@ resource "aws_iam_role_policy_attachment" "bedrock_s3_attach" {
   policy_arn = aws_iam_policy.bedrock_s3_policy.arn
 }
 
+resource "aws_bedrock_custom_model" "haiku_finetuned" {
+  custom_model_name     = local.custom_model_name
+  job_name              = local.customization_job_name
+  base_model_identifier = local.base_model_arn
+  role_arn              = aws_iam_role.bedrock_finetuning_role.arn
+  customization_type    = "FINE_TUNING"
+
+  hyperparameters = {
+    epochCount                = "5"
+    batchSize                 = "32"
+    learningRateMultiplier    = "1"
+    earlyStoppingThreshold    = "0.001"
+    earlyStoppingPatience     = "2"
+  }
+
+  training_data_config {
+    s3_uri = local.s3_train_uri
+  }
+
+  validation_data_config {
+    validator {
+      s3_uri = local.s3_validation_uri
+    }
+  }
+
+  output_data_config {
+    s3_uri = local.s3_output_uri
+  }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.bedrock_s3_attach
+  ]
+}
+
 output "s3_bucket_name" {
   value       = aws_s3_bucket.bedrock_haiku_bucket.id
   description = "S3 bucket name for Claude-3 Haiku fine-tuning data"
@@ -102,4 +143,24 @@ output "s3_bucket_arn" {
 output "finetuning_role_arn" {
   value       = aws_iam_role.bedrock_finetuning_role.arn
   description = "IAM role ARN for Bedrock fine-tuning"
+}
+
+output "customization_job_name" {
+  value       = local.customization_job_name
+  description = "Name of the fine-tuning job"
+}
+
+output "custom_model_name" {
+  value       = local.custom_model_name
+  description = "Name of the fine-tuned model"
+}
+
+output "custom_model_arn" {
+  value       = aws_bedrock_custom_model.haiku_finetuned.custom_model_arn
+  description = "ARN of the fine-tuned custom model"
+}
+
+output "job_arn" {
+  value       = aws_bedrock_custom_model.haiku_finetuned.job_arn
+  description = "ARN of the fine-tuning job"
 }
